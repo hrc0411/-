@@ -76,14 +76,14 @@
 预期影响：开单更少、更挑剔。样本很小，结果只能说明这段时间这套规则的表现。
 
 ## 8. 运行方式
-- 执行：`engine.py`（纯标准库，确定性，无人工干预），由 GitHub Actions 每小时 :07（UTC 时区 cron）运行并把结果提交回仓库。Actions 可能延迟数分钟；引擎只处理"上次之后新收盘的 K 线"，延迟或漏跑不会改变决策。漏跑时中间的 K 线只用于止损/止盈判断，开仓只看最新一根
+- 执行：`engine.py`（纯标准库，确定性，无人工干预）由 GitHub Actions 中的 `run_loop.sh` 在每小时 :07（SGT）运行，并把结果提交回仓库。每个 Actions 任务连续运行约 5.5 小时后自动派发下一个任务接力；另有每 3 小时一次的 cron 作为看门狗（GitHub 原生 cron 在 2026-11-11 首日 8 小时内一次未触发，故改为接力方式）。引擎只处理"上次之后新收盘的 K 线"，延迟或漏跑不会改变已发生 K 线的离场判断；漏跑时中间的 K 线只用于止损/止盈判断，开仓只看最新一根
 - 数据缺失时该币的 K 线不标记为已处理，下轮数据恢复后按真实 K 线补做离场判断（不估价）
 - 文件：`accounts/{4h,1h}/state.json`、`log.md`、`trades.csv`；`docs/data.json` 供 dashboard
-- 周报：每周六 12:37 SGT 由 `report.py` 生成 `weekly/YYYY-MM-DD.md`；Muse 数据放 `muse/trades_4h.csv` 自动并列
+- 周报：每周六 12:07 SGT 由 `report.py` 生成 `weekly/YYYY-MM-DD.md`；Muse 数据放 `muse/trades_4h.csv` 自动并列
 - Dashboard：`docs/index.html`（实时价来自浏览器直连 Coinbase）
 
 ## 9. 已确认
-- [x] 定时触发：GitHub Actions cron（周报另有 Claude 定时任务做文字总结）
+- [x] 定时触发：GitHub Actions 接力循环 + cron 看门狗（周报另有 Claude 定时任务做文字总结）
 - [x] 起始时间：见顶部
 - [x] 采用第 7 节差异版本
 - [x] Binance.US、Coinbase、CoinGecko 在运行环境中均可访问（2026-11-11 实测 HTTP 200）
