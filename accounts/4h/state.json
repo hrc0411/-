@@ -1,0 +1,18 @@
+{
+ "tf": "4h",
+ "rules": "v0.1",
+ "start_ms": 1794366459087,
+ "last_bar": {
+  "LTC": 1794340800000,
+  "ETH": 1794340800000,
+  "SOL": 1794340800000,
+  "XRP": 1794340800000,
+  "DOGE": 1794340800000
+ },
+ "positions": {},
+ "no_entry_before": {},
+ "realized": 0.0,
+ "closed": 0,
+ "wins": 0,
+ "equity": []
+}

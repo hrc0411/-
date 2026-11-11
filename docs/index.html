@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code 模拟盘 Dashboard</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--fg:#e6e8ee;--mute:#8b93a7;--up:#22c55e;--dn:#ef4444;--acc:#60a5fa;--acc2:#f59e0b}
+@media (prefers-color-scheme:light){:root{--bg:#f6f7f9;--card:#fff;--line:#e3e6ec;--fg:#14171f;--mute:#667085;--up:#15803d;--dn:#dc2626;--acc:#2563eb;--acc2:#b45309}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:1180px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0}h2{font-size:15px;margin:22px 0 8px;color:var(--mute);font-weight:600}
+.sub{color:var(--mute);font-size:12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.k b{display:block;font-size:18px;font-variant-numeric:tabular-nums}.k>span{font-size:11px;color:var(--mute)}
+.up{color:var(--up)}.dn{color:var(--dn)}.mute{color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{color:var(--mute);font-weight:500;font-size:12px}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;border:1px solid var(--line)}
+.tag.short{color:var(--dn);border-color:var(--dn)}.tag.long{color:var(--up);border-color:var(--up)}
+.tabs button{background:none;border:1px solid var(--line);color:var(--fg);padding:4px 10px;border-radius:6px;cursor:pointer}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+svg text{fill:var(--mute);font-size:10px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--up);margin-right:6px}
+</style>
+</head>
+<body><main>
+<h1>Claude Code 模拟盘 <span class="sub">纯模拟 · 不下真实订单 · 规则 <span id="rules">v0.1</span></span></h1>
+<div class="sub"><span class="dot" id="dot"></span>实时价：Coinbase（每 10 秒）· 账本更新：<span id="upd">—</span> · 每笔名义 2000 USDT（200×10），往返费 2 USDT</div>
+
+<div class="grid" style="margin-top:12px" id="accts"></div>
+
+<h2>当前持仓（实时浮动盈亏，不计入战绩）</h2>
+<div class="card wrap"><table id="pos"><thead><tr><th>盘/币</th><th>方向</th><th>入场</th><th>现价</th><th>止损</th><th>目标</th><th>距止损</th><th>距目标</th><th>持有</th><th>浮动 USDT</th></tr></thead><tbody></tbody></table></div>
+
+<h2>实时价格与冻结价位（2026-11-06）</h2>
+<div class="card wrap"><table id="px"><thead><tr><th>币</th><th>Coinbase 实时</th><th>24h</th><th>阻力区</th><th>破位线</th><th>空 TP1/TP2</th><th>失效线</th><th>多触发</th><th>位置</th></tr></thead><tbody></tbody></table></div>
+
+<h2>累计净盈亏曲线（已实现 + 评估时浮动）</h2>
+<div class="card"><div class="tabs" id="ctabs"></div><div id="chart"></div></div>
+
+<h2>已平仓</h2>
+<div class="card wrap"><div class="tabs" id="ttabs"></div><table id="trades"><thead><tr><th>币</th><th>方向</th><th>入场时间</th><th>入场</th><th>离场时间</th><th>离场</th><th>原因</th><th>净盈亏</th></tr></thead><tbody></tbody></table></div>
+<p class="sub">数据：Binance.US 已收盘 K 线决策；Coinbase/CoinGecko 交叉核对（偏差 &gt;0.5% 记数据缺失）。日志见仓库 accounts/*/log.md。</p>
+</main>
+<script>
+const RAW = "https://raw.githubusercontent.com/hrc0411/-/claude/ecstatic-hawking-mdyk0r/docs/data.json";
+let D = null, live = {}, chg = {}, chartTf = "4h", tradeTf = "4h";
+const $ = s => document.querySelector(s);
+const f = (x, d) => x == null ? "—" : (+x).toPrecision(d || 6).replace(/\.?0+$/, "");
+const money = x => `<span class="${x >= 0 ? "up" : "dn"}">${x >= 0 ? "+" : ""}${x.toFixed(2)}</span>`;
+const pnl = (side, e, p) => 2000 * (side === "long" ? 1 : -1) * (p - e) / e - 2;
+
+async function loadData() {
+  for (const u of ["data.json?" + Date.now(), RAW + "?" + Date.now()]) {
+    try { const r = await fetch(u, {cache: "no-store"}); if (r.ok) { D = await r.json(); render(); return; } } catch (e) {}
+  }
+}
+async function loadLive() {
+  if (!D) return;
+  let ok = true;
+  await Promise.all(Object.entries(D.coins).map(async ([c, m]) => {
+    try {
+      const r = await fetch(`https://api.exchange.coinbase.com/products/${m.cb}/stats`);
+      const j = await r.json();
+      live[c] = +j.last; chg[c] = (j.last - j.open) / j.open;
+    } catch (e) { ok = false; }
+  }));
+  $("#dot").style.background = ok ? "var(--up)" : "var(--dn)";
+  render();
+}
+function price(c) { return live[c] ?? D.spot[c].coinbase ?? D.spot[c].coingecko; }
+
+function render() {
+  if (!D) return;
+  $("#rules").textContent = D.rules; $("#upd").textContent = D.updated;
+  // accounts
+  $("#accts").innerHTML = Object.entries(D.accounts).map(([tf, a]) => {
+    const s = a.state; let fl = 0;
+    for (const [c, p] of Object.entries(s.positions)) fl += pnl(p.side, p.entry, price(c));
+    const wr = s.closed ? (100 * s.wins / s.closed).toFixed(0) + "%" : "—";
+    return `<div class="card"><b>${tf} 盘</b> <span class="sub">起始 ${new Date(s.start_ms).toLocaleString("zh-CN",{timeZone:"Asia/Singapore"})} SGT</span>
+      <div class="kpis"><div class="k"><b>${money(s.realized)}</b><span>已实现净盈亏</span></div>
+      <div class="k"><b>${money(fl)}</b><span>实时浮动（${Object.keys(s.positions).length} 笔）</span></div>
+      <div class="k"><b>${money(s.realized + fl)}</b><span>合计</span></div>
+      <div class="k"><b>${s.closed}</b><span>已平仓</span></div><div class="k"><b>${wr}</b><span>胜率</span></div>
+      <div class="k"><b>${(s.realized / 10).toFixed(1)}%</b><span>收益率（按 5×200 保证金）</span></div></div></div>`;
+  }).join("");
+  // positions
+  const rows = [];
+  for (const [tf, a] of Object.entries(D.accounts)) for (const [c, p] of Object.entries(a.state.positions)) {
+    const px = price(c), dS = Math.abs(p.stop - px) / px, dT = Math.abs(p.target - px) / px;
+    rows.push(`<tr><td>${tf} · ${c}</td><td><span class="tag ${p.side}">${p.side === "short" ? "空" : "多"}${p.breakeven ? " 保本" : ""}</span></td>
+      <td>${f(p.entry)}</td><td>${f(px)}</td><td>${f(p.stop)}</td><td>${f(p.target)}</td><td>${(dS*100).toFixed(2)}%</td><td>${(dT*100).toFixed(2)}%</td>
+      <td>${p.bars_held} 根</td><td>${money(pnl(p.side, p.entry, px))}</td></tr>`);
+  }
+  $("#pos tbody").innerHTML = rows.join("") || `<tr><td colspan="10" class="mute">空仓</td></tr>`;
+  // prices
+  $("#px tbody").innerHTML = Object.entries(D.levels).map(([c, L]) => {
+    const px = price(c), ch = chg[c];
+    let where = px > L.long_trig ? "做多触发上方" : px >= L.res_lo ? "阻力区内/上" : px >= L.brk ? "破位线–阻力区之间" : px >= L.tp1 ? "破位线下" : "TP1 下方";
+    return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${ch == null ? "—" : `<span class="${ch>=0?"up":"dn"}">${(ch*100).toFixed(2)}%</span>`}</td>
+      <td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.tp1)} / ${L.tp2 == null ? "—" : f(L.tp2)}</td><td>${f(L.inval)}</td><td>${f(L.long_trig)}</td><td class="mute">${where}</td></tr>`;
+  }).join("");
+  // tabs
+  const tabs = (id, cur, set) => { $(id).innerHTML = Object.keys(D.accounts).map(tf => `<button class="${tf===cur?"on":""}" data-tf="${tf}">${tf}</button>`).join(" ");
+    $(id).querySelectorAll("button").forEach(b => b.onclick = () => { set(b.dataset.tf); render(); }); };
+  tabs("#ctabs", chartTf, v => chartTf = v); tabs("#ttabs", tradeTf, v => tradeTf = v);
+  chart(D.accounts[chartTf].state.equity);
+  const tr = (D.accounts[tradeTf].trades || []).slice().reverse();
+  $("#trades tbody").innerHTML = tr.map(r => `<tr><td>${r.coin}</td><td><span class="tag ${r.side}">${r.side==="short"?"空":"多"}</span></td><td>${r.entry_time}</td><td>${f(r.entry)}</td><td>${r.exit_time}</td><td>${f(r.exit)}</td><td>${r.reason}</td><td>${money(+r.net_pnl)}</td></tr>`).join("")
+    || `<tr><td colspan="8" class="mute">暂无</td></tr>`;
+}
+function chart(eq) {
+  const W = 1100, H = 220, P = 40;
+  if (!eq || eq.length < 2) { $("#chart").innerHTML = `<p class="mute">数据点不足，评估几轮后显示。</p>`; return; }
+  const xs = eq.map(e => e.t), ys = eq.map(e => e.realized + e.unrealized), rs = eq.map(e => e.realized);
+  const all = ys.concat(rs, [0]), lo = Math.min(...all), hi = Math.max(...all), span = hi - lo || 1;
+  const X = t => P + (W - 2 * P) * (t - xs[0]) / ((xs.at(-1) - xs[0]) || 1), Y = v => H - 20 - (H - 40) * (v - lo) / span;
+  const path = arr => arr.map((v, i) => (i ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(v).toFixed(1)).join("");
+  $("#chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">
+    <line x1="${P}" x2="${W-P}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>
+    <text x="4" y="${Y(hi)+4}">${hi.toFixed(0)}</text><text x="4" y="${Y(lo)}">${lo.toFixed(0)}</text><text x="4" y="${Y(0)+4}">0</text>
+    <path d="${path(rs)}" fill="none" stroke="var(--acc2)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <path d="${path(ys)}" fill="none" stroke="var(--acc)" stroke-width="2"/>
+    <text x="${W-P}" y="14" text-anchor="end">— 合计（含浮动）  - - 已实现</text></svg>`;
+}
+loadData().then(loadLive);
+setInterval(loadLive, 10000);
+setInterval(loadData, 300000);
+</script>
+</body></html>
