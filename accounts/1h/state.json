@@ -3,16 +3,43 @@
  "rules": "v0.1",
  "start_ms": 1794366459087,
  "last_bar": {
-  "LTC": 1794362400000,
-  "ETH": 1794362400000,
-  "SOL": 1794362400000,
-  "XRP": 1794362400000,
-  "DOGE": 1794362400000
+  "LTC": 1794391200000,
+  "ETH": 1794391200000,
+  "SOL": 1794391200000,
+  "XRP": 1794391200000,
+  "DOGE": 1794391200000
  },
- "positions": {},
+ "positions": {
+  "ETH": {
+   "side": "short",
+   "entry": 2058.66,
+   "entry_ms": 1794394800000,
+   "stop": 2120.4198,
+   "target": 1972,
+   "stage": 2,
+   "breakeven": false,
+   "bars_held": 0
+  },
+  "XRP": {
+   "side": "short",
+   "entry": 1.0617,
+   "entry_ms": 1794394800000,
+   "stop": 1.0935510000000002,
+   "target": 1.0,
+   "stage": 2,
+   "breakeven": false,
+   "bars_held": 0
+  }
+ },
  "no_entry_before": {},
  "realized": 0.0,
  "closed": 0,
  "wins": 0,
- "equity": []
+ "equity": [
+  {
+   "t": 1794396474270,
+   "realized": 0.0,
+   "unrealized": -4.0
+  }
+ ]
 }
