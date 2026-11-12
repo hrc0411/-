@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs inside GitHub Actions: evaluate at :07 every hour for ~5.5h, then the
+# Runs inside GitHub Actions: crypto at :07 every hour, US stocks every 15 min, for ~5.5h, then the
 # workflow re-dispatches itself. Independent of GitHub's (unreliable) cron.
 set -u
 BR="${GITHUB_REF_NAME:-claude/ecstatic-hawking-mdyk0r}"
@@ -9,7 +9,8 @@ END=$(( $(date +%s) + 330 * 60 ))
 
 tick() {
   git pull -q --rebase origin "$BR" || git rebase --abort || true
-  python3 engine.py || echo "engine failed"
+  if [ "$(date +%M)" -lt 15 ]; then python3 engine.py || echo "engine failed"; fi
+  python3 stocks.py || echo "stocks failed"
   if [ "$(TZ=Asia/Singapore date +%u%H)" = "612" ] && [ ! -f "weekly/$(TZ=Asia/Singapore date +%F).md" ]; then
     python3 report.py || echo "report failed"
   fi
@@ -26,8 +27,8 @@ tick() {
 tick
 while :; do
   now=$(date +%s)
-  next=$(( now / 3600 * 3600 + 420 ))
-  [ "$next" -le "$now" ] && next=$(( next + 3600 ))
+  next=$(( now / 900 * 900 + 420 ))   # :07 :22 :37 :52
+  [ "$next" -le "$now" ] && next=$(( next + 900 ))
   [ "$next" -gt "$END" ] && break
   sleep $(( next - now ))
   tick

@@ -63,6 +63,20 @@ def main():
         for r in rows:
             out.append(f"- {r['coin']} {r['side']} {r['entry_time']} @ {r['entry']} → {r['exit_time']} @ {float(r['exit']):.6g}，{r['reason']}，{float(r['net_pnl']):+.2f}")
         out.append("")
+    us = os.path.join(ROOT, "accounts", "us", "state.json")
+    if os.path.exists(us):
+        su = json.load(open(us))
+        ut = load_trades(os.path.join(ROOT, "accounts", "us", "trades.csv"))
+        q = su.get("quotes", {})
+        mv = sum(p["shares"] * (q.get(t, {}).get("price") or p["entry"]) for t, p in su["positions"].items())
+        eq = su["cash"] + mv
+        b = (q.get("SPY", {}).get("price") or su.get("bench_last"))
+        bret = f"{b / su['bench_start'] - 1:+.2%}" if su.get("bench_start") and b else "—"
+        n, w, net = stats([dict(r, exit_time=r["exit_date"]) for r in ut], since[:10])
+        out += ["## 美股盘（只做多）", "",
+                f"- 权益 {eq:,.2f} USD，总收益率 {eq / 10000 - 1:+.2%}；SPY 同期 {bret}",
+                f"- 本周平仓 {n} 笔，胜率 {(w / n if n else 0):.0%}，净盈亏 {net:+.2f}；累计平仓 {su['closed']} 笔，已实现 {su['realized']:+.2f}",
+                f"- 当前持仓：{', '.join(su['positions']) or '空仓'}", ""]
     out.append("样本很小，结果只说明这段时间这套规则的表现。")
     os.makedirs(os.path.join(ROOT, "weekly"), exist_ok=True)
     p = os.path.join(ROOT, "weekly", f"{now:%Y-%m-%d}.md")
