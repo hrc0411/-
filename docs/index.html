@@ -40,6 +40,9 @@ svg text{fill:var(--mute);font-size:10px}
 <h2>实时价格与冻结价位（2026-11-06）</h2>
 <div class="card wrap"><table id="px"><thead><tr><th>币</th><th>Coinbase 实时</th><th>24h</th><th>阻力区</th><th>破位线</th><th>空 TP1/TP2</th><th>失效线</th><th>多触发</th><th>位置</th></tr></thead><tbody></tbody></table></div>
 
+<h2>v0.2 动态价位（按最近一次 4h-v2 评估，日线 10 日高低 + ATR）</h2>
+<div class="card wrap"><table id="dyn"><thead><tr><th>币</th><th>现价</th><th>阻力区</th><th>破位线（10 日低）</th><th>失效/做多触发（10 日高）</th><th>ATR</th><th>空 TP1 / TP2（按现价）</th><th>位置</th></tr></thead><tbody></tbody></table></div>
+
 <h2>累计净盈亏曲线（已实现 + 评估时浮动）</h2>
 <div class="card"><div class="tabs" id="ctabs"></div><div id="chart"></div></div>
 
@@ -118,6 +121,12 @@ function render() {
     return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${ch == null ? "—" : `<span class="${ch>=0?"up":"dn"}">${(ch*100).toFixed(2)}%</span>`}</td>
       <td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.tp1)} / ${L.tp2 == null ? "—" : f(L.tp2)}</td><td>${f(L.inval)}</td><td>${f(L.long_trig)}</td><td class="mute">${where}</td></tr>`;
   }).join("");
+  const dv = D.accounts["4h-v2"] && D.accounts["4h-v2"].state.levels || {};
+  $("#dyn tbody").innerHTML = Object.entries(dv).map(([c, L]) => {
+    const px = price(c), where = px > L.res_hi ? "做多触发上方" : px >= L.res_lo ? "阻力区内" : px >= L.brk ? "破位线–阻力区之间" : "破位线下";
+    return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.res_hi)}</td><td>${f(L.atr)} (${(100*L.atr/px).toFixed(1)}%)</td>
+      <td>${f(px - 1.5*L.atr)} / ${f(px - 3*L.atr)}</td><td class="mute">${where}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="mute">v0.2 盘首次评估后显示</td></tr>`;
   // tabs
   const tabs = (id, cur, set) => { $(id).innerHTML = Object.keys(D.accounts).map(tf => `<button class="${tf===cur?"on":""}" data-tf="${tf}">${tf}</button>`).join(" ");
     $(id).querySelectorAll("button").forEach(b => b.onclick = () => { set(b.dataset.tf); render(); }); };

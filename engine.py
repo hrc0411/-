@@ -44,7 +44,33 @@ LEVELS = {
 ACCOUNTS = {
     "4h": {"interval": "4h", "ms": 4 * 3600_000, "max_bars": 12},   # 12 x 4h = 48h
     "1h": {"interval": "1h", "ms": 3600_000,     "max_bars": 48},   # 48 x 1h = 48h
+    # v0.2: same logic, levels derived from daily candles instead of the frozen table
+    "4h-v2": {"interval": "4h", "ms": 4 * 3600_000, "max_bars": 12, "dyn": True},
+    "1h-v2": {"interval": "1h", "ms": 3600_000,     "max_bars": 48, "dyn": True},
 }
+DAY_MS = 86_400_000
+DYN_LOOKBACK, ATR_N = 10, 14
+TP1_ATR, TP2_ATR, LONG_TP_ATR = 1.5, 3.0, 2.0
+
+
+def dyn_levels(daily, until_ms):
+    """v0.2 levels from Binance.US daily bars that closed by until_ms."""
+    d = [b for b in (daily or []) if b["t"] + DAY_MS <= until_ms]
+    if len(d) < ATR_N + 1:
+        return None
+    trs = [max(b["h"] - b["l"], abs(b["h"] - p["c"]), abs(b["l"] - p["c"])) for p, b in zip(d[-ATR_N - 1:-1], d[-ATR_N:])]
+    atr = sum(trs) / ATR_N
+    w = d[-DYN_LOOKBACK:]
+    hi, lo = max(b["h"] for b in w), min(b["l"] for b in w)
+    return {"res_lo": hi - atr, "res_hi": hi, "brk": lo, "inval": hi, "long_trig": hi, "long_inval": hi - atr,
+            "atr": atr, "tp1": None, "tp2": None, "long_tp": None}
+
+
+def with_targets(lv, close):
+    """v0.2 targets are measured from the entry (close) in ATR units."""
+    lv = dict(lv)
+    lv.update(tp1=close - TP1_ATR * lv["atr"], tp2=close - TP2_ATR * lv["atr"], long_tp=close + LONG_TP_ATR * lv["atr"])
+    return lv
 
 
 # ---------------------------------------------------------------- data
@@ -129,12 +155,13 @@ def save_state(tf, st):
 
 
 def append_log(tf, text):
+    version = "v0.2（动态价位）" if ACCOUNTS[tf].get("dyn") else RULES_VERSION
     os.makedirs(acct_dir(tf), exist_ok=True)
     p = os.path.join(acct_dir(tf), "log.md")
     new = not os.path.exists(p)
     with open(p, "a") as f:
         if new:
-            f.write(f"# {tf} 模拟盘评估日志（规则 {RULES_VERSION}，时间为新加坡时间）\n\n")
+            f.write(f"# {tf} 模拟盘评估日志（规则 {version}，时间为新加坡时间）\n\n")
         f.write(text + "\n")
 
 
@@ -222,21 +249,33 @@ def manage(coin, pos, bar, lv, max_bars):
         return (C if co else pos["target"]), name
     if short and C > lv["inval"]:
         return C, f"收盘站上失效线 {fp(lv['inval'])}"
-    if not short and C < lv["inval"]:
-        return C, f"收盘跌破失效线 {fp(lv['inval'])}"
+    if not short and C < lv.get("long_inval", lv["inval"]):
+        return C, f"收盘跌破失效线 {fp(lv.get('long_inval', lv['inval']))}"
     if pos["bars_held"] >= max_bars:
         return C, f"时间止损（持仓 {pos['bars_held']} 根）"
     return None, f"持有（已 {pos['bars_held']} 根）"
 
 
 # ---------------------------------------------------------------- run
+_KCACHE = {}
+
+
+def klines_cached(symbol, interval, now_ms):
+    k = (symbol, interval)
+    if k not in _KCACHE:
+        _KCACHE[k] = fetch_closed_klines(symbol, interval, now_ms)
+    return _KCACHE[k]
+
+
 def run_account(tf, spot, now_ms):
     cfg = ACCOUNTS[tf]
+    dyn = cfg.get("dyn", False)
     st = load_state(tf)
-    klines = {c: fetch_closed_klines(m["bn"], cfg["interval"], now_ms) for c, m in COINS.items()}
+    klines = {c: klines_cached(m["bn"], cfg["interval"], now_ms) for c, m in COINS.items()}
+    daily = {c: klines_cached(m["bn"], "1d", now_ms) for c, m in COINS.items()} if dyn else {}
     first = st is None
     if first:
-        st = {"tf": tf, "rules": RULES_VERSION, "start_ms": now_ms, "last_bar": {}, "positions": {},
+        st = {"tf": tf, "rules": "v0.2" if dyn else RULES_VERSION, "levels": {}, "start_ms": now_ms, "last_bar": {}, "positions": {},
               "no_entry_before": {}, "realized": 0.0, "closed": 0, "wins": 0, "equity": []}
         lines = [f"## {fmt_t(now_ms)} 初始化（基线，不交易）", ""]
         for c in COINS:
@@ -265,12 +304,25 @@ def run_account(tf, spot, now_ms):
             why = "Binance.US K 线查不到" if bars is None else s["why"]
             lines.append(f"- **{c}** 数据缺失（{why}；{src}）→ 本轮不操作")
             continue
-        lv = LEVELS[c]
+        if dyn and daily.get(c) is None:
+            lines.append(f"- **{c}** 数据缺失（Binance.US 日线查不到）→ 本轮不操作")
+            continue
+        if dyn and dyn_levels(daily[c], new[-1]["t"] + cfg["ms"]) is None:
+            lines.append(f"- **{c}** 数据缺失（日线不足 15 根）→ 本轮不操作")
+            continue
         for b in new:
+            if dyn:
+                lv = dyn_levels(daily[c], b["t"] + cfg["ms"])
+                if lv is None:
+                    continue
+                lv = with_targets(lv, b["c"])
+                st.setdefault("levels", {})[c] = {k: v for k, v in lv.items() if k not in ("tp1", "tp2", "long_tp")}
+            else:
+                lv = LEVELS[c]
             pos = st["positions"].get(c)
             ohlc = f"K {fmt_t(b['t'])}–{fmt_t(b['t'] + cfg['ms'])[11:]} O/H/L/C {fp(b['o'])}/{fp(b['h'])}/{fp(b['l'])}/{fp(b['c'])}"
             if pos:
-                px, why = manage(c, pos, b, lv, cfg["max_bars"])
+                px, why = manage(c, pos, b, pos.get("lv") or lv, cfg["max_bars"])
                 if px is not None:
                     net = pnl(pos["side"], pos["entry"], px)
                     exit_ms = b["t"] + cfg["ms"]
@@ -300,10 +352,13 @@ def run_account(tf, spot, now_ms):
                 stop = b["c"] * (1 + STOP_PCT if side == "short" else 1 - STOP_PCT)
                 st["positions"][c] = {"side": side, "entry": b["c"], "entry_ms": b["t"] + cfg["ms"], "stop": stop,
                                       "target": tgt, "stage": stage, "breakeven": False, "bars_held": 0}
+                if dyn:
+                    st["positions"][c]["lv"] = lv
                 lines.append(f"- **{c}** {ohlc}；{src} → **开{'空' if side=='short' else '多'}** @ {fp(b['c'])}，"
                              f"止损 {fp(stop)}。理由：{why}")
             else:
-                lines.append(f"- **{c}** {ohlc}；{src} → 不开：{why}")
+                dl = (f"；动态价位 阻力 {fp(lv['res_lo'])}–{fp(lv['res_hi'])} 破位 {fp(lv['brk'])} ATR {fp(lv['atr'])}" if dyn else "")
+                lines.append(f"- **{c}** {ohlc}；{src}{dl} → 不开：{why}")
         st["last_bar"][c] = new[-1]["t"]
 
     if changed:

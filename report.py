@@ -41,7 +41,8 @@ def main():
            "| 盘 | 本周平仓 | 本周胜率 | 本周净盈亏 | 累计平仓 | 累计胜率 | 累计净盈亏 |",
            "|---|---|---|---|---|---|---|"]
     trades = {}
-    for tf in ("4h", "1h"):
+    TFS = [tf for tf in ("4h", "1h", "4h-v2", "1h-v2") if tf in data["accounts"]]
+    for tf in TFS:
         trades[tf] = load_trades(os.path.join(ROOT, "accounts", tf, "trades.csv"))
         out.append(line(f"Claude {tf}", trades[tf], since))
     muse = load_trades(os.path.join(ROOT, "muse", "trades_4h.csv"))
@@ -57,7 +58,7 @@ def main():
             out.append(f"- {tf} {c} {'空' if p['side']=='short' else '多'} @ {p['entry']:.6g}，止损 {p['stop']:.6g}，"
                        f"目标 {p['target']:.6g}，现价 {px}，浮动 {fl:+.2f}（不计入战绩）")
     out += ["", "## 本周平仓明细", ""]
-    for tf in ("4h", "1h"):
+    for tf in TFS:
         rows = [r for r in trades[tf] if r["exit_time"] >= since]
         out.append(f"**{tf}**：" + ("无" if not rows else ""))
         for r in rows:
