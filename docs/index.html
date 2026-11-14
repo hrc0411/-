@@ -26,30 +26,50 @@ th:first-child,td:first-child{text-align:left}th{color:var(--mute);font-weight:5
 .tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 svg text{fill:var(--mute);font-size:10px}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--up);margin-right:6px}
+.maintabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;padding:10px 0;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
+.maintabs button{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);color:var(--fg);padding:9px 12px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;white-space:nowrap}
+.maintabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}.maintabs button.on .sub{color:#e6ecff}
+.tabpane{display:none}.tabpane.on{display:block}
 </style>
 </head>
 <body><main>
-<h1>Claude Code 模拟盘 <span class="sub">纯模拟 · 不下真实订单 · 规则 <span id="rules">v0.1</span></span></h1>
-<div class="sub"><span class="dot" id="dot"></span>实时价：Coinbase（每 10 秒）· 账本更新：<span id="upd">—</span> · 每笔名义 2000 USDT（200×10），往返费 2 USDT</div>
+<nav class="maintabs" id="maintabs">
+  <button data-tab="v1">加密 v0.1 <span class="sub">冻结价位</span></button>
+  <button data-tab="v2">加密 v0.2 <span class="sub">动态价位</span></button>
+  <button data-tab="us">美股 <span class="sub">只做多</span></button>
+</nav>
 
-<div class="grid" style="margin-top:12px" id="accts"></div>
-
+<section id="tab-v1" class="tabpane">
+<h1>加密模拟盘 v0.1 <span class="sub">冻结价位表 · 4h + 1h · 纯模拟，不下真实订单 · 与 Muse 4h 对照</span></h1>
+<div class="sub"><span class="dot" id="dot-v1"></span>实时价：Coinbase（每 10 秒）· 账本更新：<span class="upd">—</span> · 每笔名义 2000 USDT（200×10），往返费 2 USDT</div>
+<div class="grid" style="margin-top:12px" id="accts-v1"></div>
 <h2>当前持仓（实时浮动盈亏，不计入战绩）</h2>
-<div class="card wrap"><table id="pos"><thead><tr><th>盘/币</th><th>方向</th><th>入场</th><th>现价</th><th>止损</th><th>目标</th><th>距止损</th><th>距目标</th><th>持有</th><th>浮动 USDT</th></tr></thead><tbody></tbody></table></div>
-
-<h2>实时价格与冻结价位（2026-11-06）</h2>
+<div class="card wrap"><table id="pos-v1"><thead><tr><th>盘/币</th><th>方向</th><th>入场</th><th>现价</th><th>止损</th><th>目标</th><th>距止损</th><th>距目标</th><th>持有</th><th>浮动 USDT</th></tr></thead><tbody></tbody></table></div>
+<h2>实时价格与冻结价位（Muse 2026-11-06）</h2>
 <div class="card wrap"><table id="px"><thead><tr><th>币</th><th>Coinbase 实时</th><th>24h</th><th>阻力区</th><th>破位线</th><th>空 TP1/TP2</th><th>失效线</th><th>多触发</th><th>位置</th></tr></thead><tbody></tbody></table></div>
-
-<h2>v0.2 动态价位（按最近一次 4h-v2 评估，日线 10 日高低 + ATR）</h2>
-<div class="card wrap"><table id="dyn"><thead><tr><th>币</th><th>现价</th><th>阻力区</th><th>破位线（10 日低）</th><th>失效/做多触发（10 日高）</th><th>ATR</th><th>空 TP1 / TP2（按现价）</th><th>位置</th></tr></thead><tbody></tbody></table></div>
-
 <h2>累计净盈亏曲线（已实现 + 评估时浮动）</h2>
-<div class="card"><div class="tabs" id="ctabs"></div><div id="chart"></div></div>
-
+<div class="card"><div class="tabs" id="ctabs-v1"></div><div id="chart-v1"></div></div>
 <h2>已平仓</h2>
-<div class="card wrap"><div class="tabs" id="ttabs"></div><table id="trades"><thead><tr><th>币</th><th>方向</th><th>入场时间</th><th>入场</th><th>离场时间</th><th>离场</th><th>原因</th><th>净盈亏</th></tr></thead><tbody></tbody></table></div>
+<div class="card wrap"><div class="tabs" id="ttabs-v1"></div><table id="trades-v1"><thead><tr><th>币</th><th>方向</th><th>入场时间</th><th>入场</th><th>离场时间</th><th>离场</th><th>原因</th><th>净盈亏</th></tr></thead><tbody></tbody></table></div>
+<p class="sub">数据：Binance.US 已收盘 K 线决策；Coinbase/CoinGecko 交叉核对（偏差 &gt;0.5% 记数据缺失）。日志见仓库 accounts/*/log.md。</p>
+</section>
 
-<h1 style="margin-top:34px">美股模拟盘 <span class="sub">只做多 · 10,000 USD 起始 · 5 仓 × 2,000 · 规则 <span id="srules">stock-v0.1</span></span></h1>
+<section id="tab-v2" class="tabpane">
+<h1>加密模拟盘 v0.2 <span class="sub">动态价位（RULES_v0.2.md）· 4h-v2 + 1h-v2 · 其余规则同 v0.1</span></h1>
+<div class="sub"><span class="dot" id="dot-v2"></span>实时价：Coinbase（每 10 秒）· 账本更新：<span class="upd">—</span> · 每笔名义 2000 USDT（200×10），往返费 2 USDT</div>
+<div class="grid" style="margin-top:12px" id="accts-v2"></div>
+<h2>当前持仓（实时浮动盈亏，不计入战绩）</h2>
+<div class="card wrap"><table id="pos-v2"><thead><tr><th>盘/币</th><th>方向</th><th>入场</th><th>现价</th><th>止损</th><th>目标</th><th>距止损</th><th>距目标</th><th>持有</th><th>浮动 USDT</th></tr></thead><tbody></tbody></table></div>
+<h2>实时价格与动态价位（最近一次 4h-v2 评估；日线 10 日高低 + ATR14）</h2>
+<div class="card wrap"><table id="dyn"><thead><tr><th>币</th><th>现价</th><th>24h</th><th>阻力区</th><th>破位线（10 日低）</th><th>失效/做多触发（10 日高）</th><th>ATR</th><th>空 TP1 / TP2（按现价）</th><th>位置</th></tr></thead><tbody></tbody></table></div>
+<h2>累计净盈亏曲线（已实现 + 评估时浮动）</h2>
+<div class="card"><div class="tabs" id="ctabs-v2"></div><div id="chart-v2"></div></div>
+<h2>已平仓</h2>
+<div class="card wrap"><div class="tabs" id="ttabs-v2"></div><table id="trades-v2"><thead><tr><th>币</th><th>方向</th><th>入场时间</th><th>入场</th><th>离场时间</th><th>离场</th><th>原因</th><th>净盈亏</th></tr></thead><tbody></tbody></table></div>
+<p class="sub">数据：Binance.US 已收盘 K 线决策；Coinbase/CoinGecko 交叉核对（偏差 &gt;0.5% 记数据缺失）。日志见仓库 accounts/*/log.md。</p>
+</section>
+<section id="tab-us" class="tabpane">
+<h1>美股模拟盘 <span class="sub">只做多 · 10,000 USD 起始 · 5 仓 × 2,000 · 规则 <span id="srules">stock-v0.1</span></span></h1>
 <div class="sub">报价：Yahoo Finance，美股交易时段每 15 分钟更新（<span id="supd">—</span>）· 决策：每个交易日收盘后（16:15 ET 后）· 对标 SPY 买入持有</div>
 <div class="grid" style="margin-top:12px"><div class="card" id="skpi"></div></div>
 <h2>美股持仓</h2>
@@ -60,8 +80,7 @@ svg text{fill:var(--mute);font-size:10px}
 <div class="card"><div id="schart"></div></div>
 <h2>美股已平仓</h2>
 <div class="card wrap"><table id="strades"><thead><tr><th>股票</th><th>买入日</th><th>买入</th><th>卖出日</th><th>卖出</th><th>原因</th><th>收益率</th><th>净盈亏</th></tr></thead><tbody></tbody></table></div>
-<p class="sub">数据：Binance.US 已收盘 K 线决策；Coinbase/CoinGecko 交叉核对（偏差 &gt;0.5% 记数据缺失）。日志见仓库 accounts/*/log.md。</p>
-</main>
+</section>
 <script>
 const RAW = "https://raw.githubusercontent.com/hrc0411/-/claude/ecstatic-hawking-mdyk0r/docs/data.json";
 let D = null, live = {}, chg = {}, chartTf = "4h", tradeTf = "4h";
@@ -85,17 +104,40 @@ async function loadLive() {
       live[c] = +j.last; chg[c] = (j.last - j.open) / j.open;
     } catch (e) { ok = false; }
   }));
-  $("#dot").style.background = ok ? "var(--up)" : "var(--dn)";
+  document.querySelectorAll(".dot").forEach(e => e.style.background = ok ? "var(--up)" : "var(--dn)");
   render();
 }
 function price(c) { return live[c] ?? D.spot[c].coinbase ?? D.spot[c].coingecko; }
 
+const GROUPS = {v1: ["4h", "1h"], v2: ["4h-v2", "1h-v2"]};
+const SEL = {v1: {chart: "4h", trade: "4h"}, v2: {chart: "4h-v2", trade: "4h-v2"}};
+const chg24 = c => chg[c] == null ? "—" : `<span class="${chg[c]>=0?"up":"dn"}">${(chg[c]*100).toFixed(2)}%</span>`;
+
 function render() {
   if (!D) return;
-  $("#rules").textContent = D.rules; $("#upd").textContent = D.updated;
-  // accounts
-  $("#accts").innerHTML = Object.entries(D.accounts).map(([tf, a]) => {
-    const s = a.state; let fl = 0;
+  document.querySelectorAll(".upd").forEach(e => e.textContent = D.updated);
+  for (const g of Object.keys(GROUPS)) renderGroup(g);
+  // v0.1 frozen levels
+  $("#px tbody").innerHTML = Object.entries(D.levels).map(([c, L]) => {
+    const px = price(c);
+    const where = px > L.long_trig ? "做多触发上方" : px >= L.res_lo ? "阻力区内/上" : px >= L.brk ? "破位线–阻力区之间" : px >= L.tp1 ? "破位线下" : (L.tp2 == null || px >= L.tp2) ? "TP1 下方" : "已跌穿全部目标（无法开空）";
+    return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${chg24(c)}</td>
+      <td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.tp1)} / ${L.tp2 == null ? "—" : f(L.tp2)}</td><td>${f(L.inval)}</td><td>${f(L.long_trig)}</td><td class="mute">${where}</td></tr>`;
+  }).join("");
+  // v0.2 dynamic levels
+  const dv = D.accounts["4h-v2"] && D.accounts["4h-v2"].state.levels || {};
+  $("#dyn tbody").innerHTML = Object.entries(dv).map(([c, L]) => {
+    const px = price(c), where = px > L.res_hi ? "做多触发上方" : px >= L.res_lo ? "阻力区内" : px >= L.brk ? "破位线–阻力区之间" : "破位线下";
+    return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${chg24(c)}</td><td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.res_hi)}</td><td>${f(L.atr)} (${(100*L.atr/px).toFixed(1)}%)</td>
+      <td>${f(px - 1.5*L.atr)} / ${f(px - 3*L.atr)}</td><td class="mute">${where}</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="mute">v0.2 盘首次评估后显示</td></tr>`;
+}
+
+function renderGroup(g) {
+  const tfs = GROUPS[g].filter(tf => D.accounts[tf]);
+  if (!tfs.length) { $(`#accts-${g}`).innerHTML = `<div class="card mute">尚未初始化，下一次整点运行后显示。</div>`; return; }
+  $(`#accts-${g}`).innerHTML = tfs.map(tf => {
+    const s = D.accounts[tf].state; let fl = 0;
     for (const [c, p] of Object.entries(s.positions)) fl += pnl(p.side, p.entry, price(c));
     const wr = s.closed ? (100 * s.wins / s.closed).toFixed(0) + "%" : "—";
     return `<div class="card"><b>${tf} 盘</b> <span class="sub">起始 ${new Date(s.start_ms).toLocaleString("zh-CN",{timeZone:"Asia/Singapore"})} SGT</span>
@@ -105,45 +147,43 @@ function render() {
       <div class="k"><b>${s.closed}</b><span>已平仓</span></div><div class="k"><b>${wr}</b><span>胜率</span></div>
       <div class="k"><b>${(s.realized / 10).toFixed(1)}%</b><span>收益率（按 5×200 保证金）</span></div></div></div>`;
   }).join("");
-  // positions
   const rows = [];
-  for (const [tf, a] of Object.entries(D.accounts)) for (const [c, p] of Object.entries(a.state.positions)) {
+  for (const tf of tfs) for (const [c, p] of Object.entries(D.accounts[tf].state.positions)) {
     const px = price(c), dS = Math.abs(p.stop - px) / px, dT = Math.abs(p.target - px) / px;
     rows.push(`<tr><td>${tf} · ${c}</td><td><span class="tag ${p.side}">${p.side === "short" ? "空" : "多"}${p.breakeven ? " 保本" : ""}</span></td>
       <td>${f(p.entry)}</td><td>${f(px)}</td><td>${f(p.stop)}</td><td>${f(p.target)}</td><td>${(dS*100).toFixed(2)}%</td><td>${(dT*100).toFixed(2)}%</td>
       <td>${p.bars_held} 根</td><td>${money(pnl(p.side, p.entry, px))}</td></tr>`);
   }
-  $("#pos tbody").innerHTML = rows.join("") || `<tr><td colspan="10" class="mute">空仓</td></tr>`;
-  // prices
-  $("#px tbody").innerHTML = Object.entries(D.levels).map(([c, L]) => {
-    const px = price(c), ch = chg[c];
-    let where = px > L.long_trig ? "做多触发上方" : px >= L.res_lo ? "阻力区内/上" : px >= L.brk ? "破位线–阻力区之间" : px >= L.tp1 ? "破位线下" : "TP1 下方";
-    return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${ch == null ? "—" : `<span class="${ch>=0?"up":"dn"}">${(ch*100).toFixed(2)}%</span>`}</td>
-      <td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.tp1)} / ${L.tp2 == null ? "—" : f(L.tp2)}</td><td>${f(L.inval)}</td><td>${f(L.long_trig)}</td><td class="mute">${where}</td></tr>`;
-  }).join("");
-  const dv = D.accounts["4h-v2"] && D.accounts["4h-v2"].state.levels || {};
-  $("#dyn tbody").innerHTML = Object.entries(dv).map(([c, L]) => {
-    const px = price(c), where = px > L.res_hi ? "做多触发上方" : px >= L.res_lo ? "阻力区内" : px >= L.brk ? "破位线–阻力区之间" : "破位线下";
-    return `<tr><td>${c}</td><td><b>${f(px)}</b></td><td>${f(L.res_lo)}–${f(L.res_hi)}</td><td>${f(L.brk)}</td><td>${f(L.res_hi)}</td><td>${f(L.atr)} (${(100*L.atr/px).toFixed(1)}%)</td>
-      <td>${f(px - 1.5*L.atr)} / ${f(px - 3*L.atr)}</td><td class="mute">${where}</td></tr>`;
-  }).join("") || `<tr><td colspan="8" class="mute">v0.2 盘首次评估后显示</td></tr>`;
-  // tabs
-  const tabs = (id, cur, set) => { $(id).innerHTML = Object.keys(D.accounts).map(tf => `<button class="${tf===cur?"on":""}" data-tf="${tf}">${tf}</button>`).join(" ");
-    $(id).querySelectorAll("button").forEach(b => b.onclick = () => { set(b.dataset.tf); render(); }); };
-  tabs("#ctabs", chartTf, v => chartTf = v); tabs("#ttabs", tradeTf, v => tradeTf = v);
-  chart(D.accounts[chartTf].state.equity);
-  const tr = (D.accounts[tradeTf].trades || []).slice().reverse();
-  $("#trades tbody").innerHTML = tr.map(r => `<tr><td>${r.coin}</td><td><span class="tag ${r.side}">${r.side==="short"?"空":"多"}</span></td><td>${r.entry_time}</td><td>${f(r.entry)}</td><td>${r.exit_time}</td><td>${f(r.exit)}</td><td>${r.reason}</td><td>${money(+r.net_pnl)}</td></tr>`).join("")
+  $(`#pos-${g} tbody`).innerHTML = rows.join("") || `<tr><td colspan="10" class="mute">空仓</td></tr>`;
+  const sel = SEL[g];
+  if (!tfs.includes(sel.chart)) sel.chart = tfs[0];
+  if (!tfs.includes(sel.trade)) sel.trade = tfs[0];
+  const tabs = (id, key) => { $(id).innerHTML = tfs.map(tf => `<button class="${tf===sel[key]?"on":""}" data-tf="${tf}">${tf}</button>`).join(" ");
+    $(id).querySelectorAll("button").forEach(b => b.onclick = () => { sel[key] = b.dataset.tf; render(); }); };
+  tabs(`#ctabs-${g}`, "chart"); tabs(`#ttabs-${g}`, "trade");
+  chart(D.accounts[sel.chart].state.equity, `#chart-${g}`);
+  const tr = (D.accounts[sel.trade].trades || []).slice().reverse();
+  $(`#trades-${g} tbody`).innerHTML = tr.map(r => `<tr><td>${r.coin}</td><td><span class="tag ${r.side}">${r.side==="short"?"空":"多"}</span></td><td>${r.entry_time}</td><td>${f(r.entry)}</td><td>${r.exit_time}</td><td>${f(r.exit)}</td><td>${r.reason}</td><td>${money(+r.net_pnl)}</td></tr>`).join("")
     || `<tr><td colspan="8" class="mute">暂无</td></tr>`;
 }
-function chart(eq) {
+
+function showTab(t) {
+  if (!["v1", "v2", "us"].includes(t)) t = "v1";
+  document.querySelectorAll(".tabpane").forEach(e => e.classList.toggle("on", e.id === "tab-" + t));
+  document.querySelectorAll("#maintabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+}
+document.querySelectorAll("#maintabs button").forEach(b => b.onclick = () => { location.hash = b.dataset.tab; showTab(b.dataset.tab); });
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+showTab(location.hash.slice(1));
+
+function chart(eq, el) {
   const W = 1100, H = 220, P = 40;
-  if (!eq || eq.length < 2) { $("#chart").innerHTML = `<p class="mute">数据点不足，评估几轮后显示。</p>`; return; }
+  if (!eq || eq.length < 2) { $(el).innerHTML = `<p class="mute">数据点不足，评估几轮后显示。</p>`; return; }
   const xs = eq.map(e => e.t), ys = eq.map(e => e.realized + e.unrealized), rs = eq.map(e => e.realized);
   const all = ys.concat(rs, [0]), lo = Math.min(...all), hi = Math.max(...all), span = hi - lo || 1;
   const X = t => P + (W - 2 * P) * (t - xs[0]) / ((xs.at(-1) - xs[0]) || 1), Y = v => H - 20 - (H - 40) * (v - lo) / span;
   const path = arr => arr.map((v, i) => (i ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(v).toFixed(1)).join("");
-  $("#chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">
+  $(el).innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">
     <line x1="${P}" x2="${W-P}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>
     <text x="4" y="${Y(hi)+4}">${hi.toFixed(0)}</text><text x="4" y="${Y(lo)}">${lo.toFixed(0)}</text><text x="4" y="${Y(0)+4}">0</text>
     <path d="${path(rs)}" fill="none" stroke="var(--acc2)" stroke-width="1.5" stroke-dasharray="4 3"/>
