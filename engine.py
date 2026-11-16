@@ -47,7 +47,11 @@ ACCOUNTS = {
     # v0.2: same logic, levels derived from daily candles instead of the frozen table
     "4h-v2": {"interval": "4h", "ms": 4 * 3600_000, "max_bars": 12, "dyn": True},
     "1h-v2": {"interval": "1h", "ms": 3600_000,     "max_bars": 48, "dyn": True},
+    # v0.3: v0.2 + trailing stop that locks part of the floating profit
+    "4h-v3": {"interval": "4h", "ms": 4 * 3600_000, "max_bars": 12, "dyn": True, "trail": True},
+    "1h-v3": {"interval": "1h", "ms": 3600_000,     "max_bars": 48, "dyn": True, "trail": True},
 }
+TRAIL_START, TRAIL_LOCK = 0.03, 0.5   # v0.3: once peak profit >= 3%, stop locks 50% of the peak profit
 DAY_MS = 86_400_000
 DYN_LOOKBACK, ATR_N = 10, 14
 TP1_ATR, TP2_ATR, LONG_TP_ATR = 1.5, 3.0, 2.0
@@ -155,7 +159,8 @@ def save_state(tf, st):
 
 
 def append_log(tf, text):
-    version = "v0.2（动态价位）" if ACCOUNTS[tf].get("dyn") else RULES_VERSION
+    cfg = ACCOUNTS[tf]
+    version = "v0.3（动态价位 + 移动止损）" if cfg.get("trail") else "v0.2（动态价位）" if cfg.get("dyn") else RULES_VERSION
     os.makedirs(acct_dir(tf), exist_ok=True)
     p = os.path.join(acct_dir(tf), "log.md")
     new = not os.path.exists(p)
@@ -227,8 +232,32 @@ def check_entry(coin, bar, prev_bar, lv):
     return side, why + f"；目标 {fp(tgt)}，净盈亏比 {rr:.2f}", tgt, stage
 
 
-def manage(coin, pos, bar, lv, max_bars):
+def trail_update(coin, pos, bar):
+    """v0.3 trailing stop, applied after the bar's exit checks (takes effect from the next bar)."""
+    short = pos["side"] == "short"
+    best = bar["c"] if coin in CLOSE_ONLY else (bar["l"] if short else bar["h"])
+    e = pos["entry"]
+    mfe = (e - best) / e if short else (best - e) / e
+    pos["mfe"] = max(pos.get("mfe", 0.0), mfe)
+    if pos["mfe"] < TRAIL_START:
+        return ""
+    lock = max(FEE_PCT, TRAIL_LOCK * pos["mfe"])
+    new = e * (1 - lock) if short else e * (1 + lock)
+    if (short and new < pos["stop"]) or (not short and new > pos["stop"]):
+        pos["stop"], pos["locked"] = new, True
+        return f"；最大浮盈 {pos['mfe']:.2%} → 移动止损至 {fp(new)}（锁定 {lock:.2%}，约 {NOTIONAL * lock - FEE:+.2f} USDT）"
+    return ""
+
+
+def manage(coin, pos, bar, lv, max_bars, trail=False):
     """Apply one closed bar to an open position. Returns (exit_price, reason) or (None, note)."""
+    r = _manage(coin, pos, bar, lv, max_bars)
+    if trail and r[0] is None:
+        return None, r[1] + trail_update(coin, pos, bar)
+    return r
+
+
+def _manage(coin, pos, bar, lv, max_bars):
     pos["bars_held"] += 1
     C, H, L = bar["c"], bar["h"], bar["l"]
     co = coin in CLOSE_ONLY
@@ -236,10 +265,12 @@ def manage(coin, pos, bar, lv, max_bars):
     short = pos["side"] == "short"
     stop_hit = hi >= pos["stop"] if short else lo <= pos["stop"]
     if stop_hit:
+        if pos.get("locked"):
+            return (C if co else pos["stop"]), "移动止盈（锁利）"
         return (C if co else pos["stop"]), ("保本止损" if pos["breakeven"] else "止损")
     if short and pos["stage"] == 1 and lv["tp2"] is not None and C < lv["tp1"]:
-        pos.update(breakeven=True, stop=pos["entry"], target=lv["tp2"], stage=2)
-        note = f"收盘 {fp(C)} 跌破第一止盈位 → 止损移至入场价 {fp(pos['entry'])}，目标改为 {fp(lv['tp2'])}"
+        pos.update(breakeven=True, stop=min(pos["stop"], pos["entry"]), target=lv["tp2"], stage=2)
+        note = f"收盘 {fp(C)} 跌破第一止盈位 → 止损移至 {fp(pos['stop'])}（不差于入场价），目标改为 {fp(lv['tp2'])}"
         if lo <= pos["target"]:
             return (C if co else pos["target"]), "第二止盈"
         return None, note
@@ -275,7 +306,7 @@ def run_account(tf, spot, now_ms):
     daily = {c: klines_cached(m["bn"], "1d", now_ms) for c, m in COINS.items()} if dyn else {}
     first = st is None
     if first:
-        st = {"tf": tf, "rules": "v0.2" if dyn else RULES_VERSION, "levels": {}, "start_ms": now_ms, "last_bar": {}, "positions": {},
+        st = {"tf": tf, "rules": "v0.3" if cfg.get("trail") else "v0.2" if dyn else RULES_VERSION, "levels": {}, "start_ms": now_ms, "last_bar": {}, "positions": {},
               "no_entry_before": {}, "realized": 0.0, "closed": 0, "wins": 0, "equity": []}
         lines = [f"## {fmt_t(now_ms)} 初始化（基线，不交易）", ""]
         for c in COINS:
@@ -322,7 +353,7 @@ def run_account(tf, spot, now_ms):
             pos = st["positions"].get(c)
             ohlc = f"K {fmt_t(b['t'])}–{fmt_t(b['t'] + cfg['ms'])[11:]} O/H/L/C {fp(b['o'])}/{fp(b['h'])}/{fp(b['l'])}/{fp(b['c'])}"
             if pos:
-                px, why = manage(c, pos, b, pos.get("lv") or lv, cfg["max_bars"])
+                px, why = manage(c, pos, b, pos.get("lv") or lv, cfg["max_bars"], cfg.get("trail", False))
                 if px is not None:
                     net = pnl(pos["side"], pos["entry"], px)
                     exit_ms = b["t"] + cfg["ms"]

@@ -41,7 +41,7 @@ def main():
            "| 盘 | 本周平仓 | 本周胜率 | 本周净盈亏 | 累计平仓 | 累计胜率 | 累计净盈亏 |",
            "|---|---|---|---|---|---|---|"]
     trades = {}
-    TFS = [tf for tf in ("4h", "1h", "4h-v2", "1h-v2") if tf in data["accounts"]]
+    TFS = [tf for tf in ("4h", "1h", "4h-v2", "1h-v2", "4h-v3", "1h-v3") if tf in data["accounts"]]
     for tf in TFS:
         trades[tf] = load_trades(os.path.join(ROOT, "accounts", tf, "trades.csv"))
         out.append(line(f"Claude {tf}", trades[tf], since))
