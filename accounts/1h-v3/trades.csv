@@ -1,0 +1,2 @@
+coin,side,entry_time,entry,exit_time,exit,reason,net_pnl
+LTC,short,2026-11-20 02:00,42.64,2026-11-20 17:00,41.935,移动止盈（锁利）,31.07
