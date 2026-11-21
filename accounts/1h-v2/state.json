@@ -50,11 +50,11 @@
  },
  "start_ms": 1794672420815,
  "last_bar": {
-  "LTC": 1795233600000,
-  "ETH": 1795233600000,
-  "SOL": 1795233600000,
-  "XRP": 1795233600000,
-  "DOGE": 1795233600000
+  "LTC": 1795237200000,
+  "ETH": 1795237200000,
+  "SOL": 1795237200000,
+  "XRP": 1795237200000,
+  "DOGE": 1795237200000
  },
  "positions": {
   "ETH": {
@@ -65,7 +65,7 @@
    "target": 1506.245,
    "stage": 1,
    "breakeven": false,
-   "bars_held": 13,
+   "bars_held": 14,
    "lv": {
     "res_lo": 2036.49,
     "res_hi": 2136.06,
@@ -87,7 +87,7 @@
    "target": 0.04810142857142857,
    "stage": 1,
    "breakeven": false,
-   "bars_held": 9,
+   "bars_held": 10,
    "lv": {
     "res_lo": 0.06685428571428571,
     "res_hi": 0.07032,
@@ -109,7 +109,7 @@
    "target": 34.87142857142857,
    "stage": 1,
    "breakeven": false,
-   "bars_held": 1,
+   "bars_held": 2,
    "lv": {
     "res_lo": 48.854285714285716,
     "res_hi": 51.42,
@@ -131,7 +131,7 @@
    "target": 59.39928571428572,
    "stage": 1,
    "breakeven": false,
-   "bars_held": 1,
+   "bars_held": 2,
    "lv": {
     "res_lo": 81.21285714285715,
     "res_hi": 85.8,
@@ -945,6 +945,11 @@
    "t": 1795237620556,
    "realized": 158.96,
    "unrealized": 172.55
+  },
+  {
+   "t": 1795241220589,
+   "realized": 158.96,
+   "unrealized": 223.23
   }
  ]
 }
