@@ -353,12 +353,12 @@
    "time": 1795467919
   },
   "SPY": {
-   "price": 722.51,
+   "price": 722.29,
    "prev": 689.81,
    "time": 1795467600
   }
  },
- "quotes_updated": "2026-11-24 05:22 SGT",
+ "quotes_updated": "2026-11-24 05:37 SGT",
  "bench_last": 722.510009765625,
  "bench_start": 757.1199951171875,
  "exited_today": {
