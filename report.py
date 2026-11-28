@@ -78,6 +78,17 @@ def main():
                 f"- 权益 {eq:,.2f} USD，总收益率 {eq / 10000 - 1:+.2%}；SPY 同期 {bret}",
                 f"- 本周平仓 {n} 笔，胜率 {(w / n if n else 0):.0%}，净盈亏 {net:+.2f}；累计平仓 {su['closed']} 笔，已实现 {su['realized']:+.2f}",
                 f"- 当前持仓：{', '.join(su['positions']) or '空仓'}", ""]
+    ss = os.path.join(ROOT, "accounts", "us-short", "state.json")
+    if os.path.exists(ss):
+        sh = json.load(open(ss))
+        q = sh.get("quotes", {})
+        eq_s = sh["cash"] + sum(2000 + p["shares"] * (p["entry"] - (q.get(t, {}).get("price") or p["entry"])) for t, p in sh["positions"].items())
+        st_ = load_trades(os.path.join(ROOT, "accounts", "us-short", "trades.csv"))
+        n, w, net = stats([dict(r, exit_time=r["exit_date"]) for r in st_], since[:10])
+        out += ["## 美股做空盘", "",
+                f"- 权益 {eq_s:,.2f} USD，总收益率 {eq_s / 10000 - 1:+.2%}",
+                f"- 本周回补 {n} 笔，胜率 {(w / n if n else 0):.0%}，净盈亏 {net:+.2f}；累计 {sh['closed']} 笔，已实现 {sh['realized']:+.2f}",
+                f"- 当前空单：{', '.join(sh['positions']) or '无'}", ""]
     out.append("样本很小，结果只说明这段时间这套规则的表现。")
     os.makedirs(os.path.join(ROOT, "weekly"), exist_ok=True)
     p = os.path.join(ROOT, "weekly", f"{now:%Y-%m-%d}.md")

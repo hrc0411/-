@@ -11,6 +11,7 @@ tick() {
   git pull -q --rebase origin "$BR" || git rebase --abort || true
   if [ "$(date +%M)" -lt 15 ]; then python3 engine.py || echo "engine failed"; fi
   python3 stocks.py || echo "stocks failed"
+  python3 stocks_short.py || echo "stocks_short failed"
   if [ "$(TZ=Asia/Singapore date +%u%H)" = "612" ] && [ ! -f "weekly/$(TZ=Asia/Singapore date +%F).md" ]; then
     python3 report.py || echo "report failed"
   fi
