@@ -1,7 +1,7 @@
 name: paper-sim
 on:
   schedule:
-    - cron: "7 */3 * * *"   # watchdog only: restarts the loop if the chain ever dies
+    - cron: "7 */3 * * *"   # watchdog only: restarts the chain if a successor could not be queued
   workflow_dispatch:
 permissions:
   contents: write
@@ -20,10 +20,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Evaluate hourly at :07 for ~5.5h
-        run: bash run_loop.sh
-      - name: Hand off to the next run
-        if: always()
+      # Queue the successor FIRST. It waits as "pending" behind this job (same
+      # concurrency group) and starts the moment this job ends for any reason:
+      # success, failure, timeout, cancellation or a lost runner. Previously the
+      # hand-off was the last step and was skipped when the runner died (11-23).
+      - name: Queue the next run
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run sim.yml --ref "${GITHUB_REF_NAME}"
+        run: |
+          for i in 1 2 3 4; do
+            gh workflow run sim.yml --ref "${GITHUB_REF_NAME}" && exit 0
+            sleep $(( i * 10 ))
+          done
+          echo "::warning::could not queue successor; cron watchdog will restart the chain"
+      - name: Evaluate hourly at :07 for ~5.5h
+        run: bash run_loop.sh

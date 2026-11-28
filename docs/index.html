@@ -33,6 +33,7 @@ svg text{fill:var(--mute);font-size:10px}
 </style>
 </head>
 <body><main>
+<div id="stale" class="card" style="display:none;border-color:var(--dn);color:var(--dn);margin:10px 0"></div>
 <nav class="maintabs" id="maintabs">
   <button data-tab="v1">加密 v0.1 <span class="sub">冻结价位</span></button>
   <button data-tab="v2">加密 v0.2 <span class="sub">动态价位</span></button>
@@ -131,6 +132,9 @@ const chg24 = c => chg[c] == null ? "—" : `<span class="${chg[c]>=0?"up":"dn"}
 function render() {
   if (!D) return;
   document.querySelectorAll(".upd").forEach(e => e.textContent = D.updated);
+  const age = (Date.now() - D.updated_ms) / 60000;
+  $("#stale").style.display = age > 75 ? "block" : "none";
+  $("#stale").textContent = `⚠ 账本已 ${Math.round(age)} 分钟未更新（正常应每小时更新一次），自动运行可能中断；恢复后会自动补判已收盘的 K 线。`;
   for (const g of Object.keys(GROUPS)) renderGroup(g);
   // v0.1 frozen levels
   $("#px tbody").innerHTML = Object.entries(D.levels).map(([c, L]) => {
